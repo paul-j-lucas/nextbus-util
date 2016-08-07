@@ -1,0 +1,428 @@
+#! /usr/bin/env python
+##
+#   nb-vstop:   Collect NextBus vehicle-at-stop data
+#   Version:    1.0
+#
+#   Author:     Paul J. Lucas
+##
+
+from __future__ import print_function
+
+import argparse
+import errno
+import json
+import os
+import requests
+import sys
+import xml.etree.ElementTree as ET
+
+from datetime import datetime
+from math import atan2, cos, radians, sin, sqrt
+from time import sleep, time
+
+###############################################################################
+
+# constants
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+EARTH_RADIUS    = 3959 * 5280           # feet
+ME              = os.path.basename( sys.argv[0] )
+NEXTBUS_URI     = 'http://webservices.nextbus.com/service/publicXMLFeed'
+
+# default values
+HTTP_REQUEST_TIMEOUT_DEFAULT    = 10    # seconds
+LOG_DEFAULT                     = sys.stdout
+NEXTBUS_AGENCY_DEFAULT          = 'sf-muni'
+REQUEST_SLEEP_DEFAULT           = 60    # seconds
+ROUTE_DEFAULT                   = 'F'
+STOP_DISTANCE_DEFAULT           = 100   # feet
+
+# stop JSON object keys
+SK_DIRECTION    = 'direction'
+SK_ID           = 'id'
+SK_LAT          = 'lat'
+SK_LON          = 'lon'
+SK_TAG          = 'tag'                 # primary key
+SK_TITLE        = 'title'
+
+# vehicle JSON object keys
+VK_DIRECTION    = 'direction'
+VK_ID           = 'id'                  # primary key
+VK_LAT          = 'lat'
+VK_LON          = 'lon'
+
+# global variables
+vehicle_stop_d = { }                    # vehicle -> last stop it was at
+
+########## Functions ##########################################################
+
+def distance( lat1, lon1, lat2, lon2 ):
+    """Calculates the distance between two points on the Earth's surface."""
+    lat1 = radians( lat1 )
+    lon1 = radians( lon1 )
+    lat2 = radians( lat2 )
+    lon2 = radians( lon2 )
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = sin( dlat / 2 )**2 + cos( lat1 ) * cos( lat2 ) * sin( dlon / 2 )**2
+    c = 2 * atan2( sqrt( a ), sqrt( 1 - a ) )
+    return c * EARTH_RADIUS
+
+
+def dump_json( json_obj ):
+    """Pretty-prints JSON."""
+    print( json.dumps( json_obj, indent=4, separators=(',',': ') ) )
+
+
+def dump_stops_csv( stops_a ):
+    """Dumps stop data in CSV format."""
+    print( "stop_tag,stop_title,stop_id,stop_direction,stop_lat,stop_lon" )
+    for stop_d in stop_a:
+        print(
+            '"%s","%s","%s","%s",%f,%f'
+            % (stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
+               stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ])
+        )
+
+
+def dump_vehicles_csv( vehices_a ):
+    """Dumps vehicle data in CSV format."""
+    print( "vehicle_id,vehicle_direction,vehicle_lat,vehicle_lon" )
+    for vehicle_d in vehices_a:
+        print(
+            '"%s","%s",%f,%f'
+            % (vehicle_d[ VK_ID ], vehicle_d[ VK_DIRECTION ],
+               vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ])
+        )
+
+
+def find_stop( vehicle_d, stop_a ):
+    """Given a vehicle, find the stop it's near, if any."""
+    min_distance_ft = args.stop_distance_ft + 1
+    min_stop_d = { }
+    for stop_d in stop_a:
+        if stop_d[ SK_DIRECTION ] != vehicle_d[ VK_DIRECTION ]:
+            continue
+        d_ft = distance( vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ],
+                         stop_d[ SK_LAT ], stop_d[ SK_LON ] )
+        if d_ft < min_distance_ft:
+            min_distance_ft = d_ft
+            min_stop_d = stop_d
+    return min_stop_d
+
+
+def get_stops( agency, route ):
+    """Gets data for all stops for the given route."""
+    r = requests.get(
+            NEXTBUS_URI,
+            params = {
+                'command' : 'routeConfig',
+                'a' : agency,
+                'r' : route
+            },
+            timeout = args.timeout
+    )
+    if args.dump_xml:
+        print( r.text )
+    root_element = ET.fromstring( r.text )
+    ##
+    # Each route has two directions: for each direction, get the list of stops
+    # and create direction-tag-to-name and stop-tag-to-direction-name mappings.
+    ##
+    direction_tag_to_name_d = { } # direction/@tag -> dir/@name
+    stop_tag_to_dir_name_d  = { } # direction/stop/@tag -> direction/@name
+    direction_elements = root_element.findall( './/direction' )
+    for direction_element in direction_elements:
+        tag  = direction_element.attrib[ 'tag' ]
+        name = direction_element.attrib[ 'name' ]
+        direction_tag_to_name_d[ tag ] = name
+        stop_elements = direction_element.findall( './stop' )
+        for stop_element in stop_elements:
+            tag = stop_element.attrib[ 'tag' ]
+            stop_tag_to_dir_name_d[ tag ] = name
+    ##
+    # For each stop, create a stop JSON object that includes the stop's
+    # direction using the stop-to-direction mapping.
+    ##
+    stop_elements = root_element.findall( './/route/stop' )
+    stop_a = [ ]
+    for stop_element in stop_elements:
+        tag = stop_element.attrib[ 'tag' ]
+        if not tag in stop_tag_to_dir_name_d:
+            continue
+        title  = stop_element.attrib[ 'title' ]
+        stopId = stop_element.attrib[ 'stopId' ]
+        dir    = stop_tag_to_dir_name_d[ tag ]
+        lat    = float( stop_element.attrib[ 'lat' ] )
+        lon    = float( stop_element.attrib[ 'lon' ] )
+        stop_d = {
+            SK_TAG       : tag,
+            SK_TITLE     : title,
+            SK_ID        : stopId,
+            SK_DIRECTION : dir,
+            SK_LAT       : lat,
+            SK_LON       : lon
+        }
+        stop_a.append( stop_d )
+
+    return stop_a, direction_tag_to_name_d
+
+
+def get_vehicle_locs( agency, route, last_time_ms ):
+    """Gets data for all vehicles on the given route."""
+    r = requests.get(
+            NEXTBUS_URI,
+            params = {
+                'command' : 'vehicleLocations',
+                'a' : agency,
+                'r' : route,
+                't' : last_time_ms
+            },
+            timeout = args.timeout
+    )
+    if args.dump_xml:
+        print( r.text )
+    root_element = ET.fromstring( r.text )
+    vehicle_elements = root_element.findall( './/vehicle' )
+    vehicle_a = [ ]
+    for vehicle_element in vehicle_elements:
+        if 'dirTag' not in vehicle_element.attrib:
+            continue
+        dirTag = vehicle_element.attrib[ 'dirTag' ]
+        if dirTag not in direction_tag_to_name_d:
+            continue
+        id  = vehicle_element.attrib[ 'id' ]
+        dir = direction_tag_to_name_d[ dirTag ]
+        lat = float( vehicle_element.attrib[ 'lat' ] )
+        lon = float( vehicle_element.attrib[ 'lon' ] )
+        vehicle_d = {
+            VK_ID        : id,
+            VK_DIRECTION : dir,
+            VK_LAT       : lat,
+            VK_LON       : lon
+        }
+        vehicle_a.append( vehicle_d )
+    last_time_element = root_element.find( 'lastTime' )
+    last_time_ms = long( last_time_element.attrib[ 'time' ] )
+    return vehicle_a, last_time_ms
+
+
+def log( msg, file=sys.stdout ):
+    timestamp = datetime.utcnow().strftime( DATETIME_FORMAT + " GMT" )
+    print( "%s %s" % (timestamp, msg), file=file )
+    file.flush()
+
+
+def log_vehicle_at_stop( vehicle_d, stop_d ):
+    if args.log_long_format:
+        log(
+            'vehicle_id="%s"' \
+            ' stop_tag="%s"' \
+            ' stop_title="%s"' \
+            ' stop_id="%s"' \
+            ' stop_direction="%s"' \
+            ' stop_lat=%f' \
+            ' stop_lon=%f' \
+            % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ], stop_d[ SK_TITLE ],
+               stop_d[ SK_ID ], stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ],
+               stop_d[ SK_LON ]),
+            file=args.log_file
+        )
+    else:
+        log(
+            'vehicle_id="%s" stop_tag="%s"'
+            % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ]),
+            file=args.log_file
+        )
+
+
+def ok( r ):
+    return r.status_code == requests.codes.ok
+
+
+def status( msg ):
+    if not args.quiet:
+        timestamp = datetime.now().strftime( DATETIME_FORMAT )
+        print( "%s: [%s] %s" % (ME, timestamp, msg) )
+
+
+########## Process command-line arguments #####################################
+
+class DurationAction( argparse.Action ):
+    def __call__( self, parser, namespace, values, option_string=None ):
+        if values.endswith( 'h' ):      # hours
+            s = int( time() ) + int( values.strip( 'h' ) ) * 60 * 60
+            setattr( namespace, self.dest, { 'seconds' : s } )
+        elif values.endswith( 'm' ):    # minutes
+            s = int( time() ) + int( values.strip( 'm' ) ) * 60
+            setattr( namespace, self.dest, { 'seconds' : s } )
+        elif values.endswith( 's' ):    # seconds
+            s = int( time() ) + int( values.strip( 's' ) )
+            setattr( namespace, self.dest, { 'seconds' : s } )
+        elif values.endswith( 'x' ):    # times
+            x = int( values.strip( 'x' ) )
+            setattr( namespace, self.dest, { 'times' : x } )
+        else:
+            raise argparse.ArgumentError(
+                self, "value must end with one of: hmsx"
+            )
+
+
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    description="Get NextBus vehicle/stop data."
+)
+
+parser.add_argument(
+    "-a", "--agency", default=NEXTBUS_AGENCY_DEFAULT, dest="agency",
+    metavar="<agency>",
+    help="specify NextBus agency [default: %s]" % NEXTBUS_AGENCY_DEFAULT
+)
+
+parser.add_argument(
+    "-c", "--dump-csv", action="store_true", dest="dump_csv",
+    help="dump stop/vehicle data as CSV for -S, -V"
+)
+
+parser.add_argument(
+    "-d", "--stop-distance", type=int, default=STOP_DISTANCE_DEFAULT,
+    dest="stop_distance_ft", metavar="<feet>",
+    help="specify stop distance [default: %d']" % STOP_DISTANCE_DEFAULT
+)
+
+parser.add_argument(
+    "-f", "-o", "--log-file", type=argparse.FileType('w'), default=LOG_DEFAULT,
+    dest="log_file", metavar="<file>",
+    help="specify log filename [default: %s]"
+    % (LOG_DEFAULT.name if type( LOG_DEFAULT ) == file else LOG_DEFAULT)
+)
+
+parser.add_argument(
+    "-l", "--log-long", action="store_true", dest="log_long_format",
+    help="log vehicles at stops in long format"
+)
+
+parser.add_argument(
+    "-n", "--duration", action=DurationAction, default={ 'times' : 1 },
+    dest="duration", metavar="<duration>",
+    help="how long to get data for"
+)
+
+parser.add_argument(
+    "-q", "--quiet", action="store_true", dest="quiet",
+    help="suppress status messages"
+)
+
+parser.add_argument(
+    "-r", "--route", default=ROUTE_DEFAULT, dest="route", metavar="<route>",
+    help="specify agency route [default: %s]" % ROUTE_DEFAULT
+)
+
+parser.add_argument(
+    "-s", "--sleep", type=int, default=REQUEST_SLEEP_DEFAULT, dest="sleep_s",
+    metavar="<seconds>",
+    help="specify time to sleep between requests [default: %ds]"
+        % REQUEST_SLEEP_DEFAULT
+)
+
+parser.add_argument(
+    "-t", "--timeout", type=int, default=HTTP_REQUEST_TIMEOUT_DEFAULT,
+    dest="timeout", metavar="<seconds>",
+    help="specify HTTP request timeout [default: %ds]"
+    % HTTP_REQUEST_TIMEOUT_DEFAULT
+)
+
+dump_group = parser.add_mutually_exclusive_group()
+
+dump_group.add_argument(
+    "-S", "--dump-stops", action="store_true", dest="dump_stops",
+    help="dump stop data to stdout and exit"
+)
+
+dump_group.add_argument(
+    "-V", "--dump-vehicles", action="store_true", dest="dump_vehicles",
+    help="dump vehicle data to stdout and exit"
+)
+
+parser.add_argument(
+    "-X", "--dump-xml", action="store_true", dest="dump_xml",
+    help="dump NextBus XML responses to stdout"
+)
+
+args = parser.parse_args()
+
+if args.dump_csv and not (args.dump_stops or args.dump_vehicles):
+    parser.error(
+        "-c/--dump_csv requires either -S/--dump-stops or -V/--dump-vehicles"
+    )
+
+########## Honor data dump requests ###########################################
+
+if not (args.dump_stops or args.dump_vehicles):
+    status( "getting %s %s stop data" % (args.agency, args.route) )
+stop_a, direction_tag_to_name_d = get_stops( args.agency, args.route )
+
+if args.dump_stops:
+    if args.dump_csv:
+        dump_stops_csv( stop_a )
+    else:
+        dump_json( stop_a )
+
+if args.dump_vehicles:
+    vehicle_a, last_time_ms = get_vehicle_locs( args.agency, args.route, 0 )
+    if args.dump_csv:
+        dump_vehicles_csv( vehicle_a )
+    else:
+        dump_json( vehicle_a )
+
+if args.dump_stops or args.dump_vehicles:
+    sys.exit( 0 )
+
+########## Main loop ##########################################################
+
+def done():
+    if 'times' in args.duration:
+        args.duration[ 'times' ] -= 1
+        return args.duration[ 'times' ] <= 0
+    if 'seconds' in args.duration:
+        now = time()
+        return now >= args.duration[ 'seconds' ]
+
+##
+# NextBus' vehicleLocations command takes the last time you used the command so
+# it can return updated data only since that time.  It is in Unix epoch time in
+# milliseconds (not seconds).
+##
+last_time_ms = 0
+
+try:
+    while True:
+        status(
+            "getting %s %s vehicle location data" % (args.agency, args.route)
+        )
+        vehicle_a, last_time_ms = \
+            get_vehicle_locs( args.agency, args.route, last_time_ms )
+        for vehicle_d in vehicle_a:
+            stop_d = find_stop( vehicle_d, stop_a )
+            if stop_d:
+                v_id = vehicle_d[ VK_ID ]
+                stop_tag = stop_d[ SK_TAG ]
+                ##
+                # Keep track of the last stop a vehicle was at to prevent
+                # logging it at the same stop multiple times in a row.
+                ##
+                if v_id not in vehicle_stop_d or \
+                        vehicle_stop_d[ v_id ] != stop_tag:
+                    log_vehicle_at_stop( vehicle_d, stop_d )
+                    vehicle_stop_d[ v_id ] = stop_tag
+        if done():
+            break
+        status( "sleeping for %d seconds" % args.sleep_s )
+        sleep( args.sleep_s )
+except KeyboardInterrupt:
+    pass
+
+status( "terminating" )
+sys.exit( 0 )
+
+###############################################################################
+# vim:set et sw=4 ts=4:
