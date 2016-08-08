@@ -33,6 +33,7 @@ HTTP_REQUEST_TIMEOUT_DEFAULT    = 10    # seconds
 LOG_DEFAULT                     = sys.stdout
 NEXTBUS_AGENCY_DEFAULT          = 'sf-muni'
 REQUEST_SLEEP_DEFAULT           = 60    # seconds
+REQUEST_SLEEP_MIN               = 10    # seconds
 ROUTE_DEFAULT                   = 'F'
 STOP_DISTANCE_DEFAULT           = 100   # feet
 
@@ -186,10 +187,10 @@ def get_vehicle_locs( agency, route, last_time_ms ):
     vehicle_a = [ ]
     for vehicle_element in vehicle_elements:
         if 'dirTag' not in vehicle_element.attrib:
-            continue
+            continue                    # NextBus sometimes omits this
         dirTag = vehicle_element.attrib[ 'dirTag' ]
         if dirTag not in direction_tag_to_name_d:
-            continue
+            continue                    # sometimes there are odd directions
         id  = vehicle_element.attrib[ 'id' ]
         dir = direction_tag_to_name_d[ dirTag ]
         lat = float( vehicle_element.attrib[ 'lat' ] )
@@ -355,10 +356,15 @@ if args.dump_csv and not (args.dump_stops or args.dump_vehicles):
         "-c/--dump_csv requires either -S/--dump-stops or -V/--dump-vehicles"
     )
 
+if args.sleep_s < REQUEST_SLEEP_MIN:
+    parser.error(
+        "-s/--sleep must not be less than %d seconds" % REQUEST_SLEEP_MIN
+    )
+
 ########## Honor data dump requests ###########################################
 
 if not (args.dump_stops or args.dump_vehicles):
-    status( "getting %s %s stop data" % (args.agency, args.route) )
+    status( "getting %s '%s' stop data" % (args.agency, args.route) )
 stop_a, direction_tag_to_name_d = get_stops( args.agency, args.route )
 
 if args.dump_stops:
@@ -397,7 +403,7 @@ last_time_ms = 0
 try:
     while True:
         status(
-            "getting %s %s vehicle location data" % (args.agency, args.route)
+            "getting %s '%s' vehicle location data" % (args.agency, args.route)
         )
         vehicle_a, last_time_ms = \
             get_vehicle_locs( args.agency, args.route, last_time_ms )
