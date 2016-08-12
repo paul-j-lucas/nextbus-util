@@ -46,6 +46,7 @@ SK_TAG          = 'tag'                 # primary key
 SK_TITLE        = 'title'
 
 # vehicle JSON object keys
+VK_AGO          = 'ago'
 VK_DIRECTION    = 'direction'
 VK_ID           = 'id'                  # primary key
 VK_LAT          = 'lat'
@@ -87,12 +88,12 @@ def dump_stops_csv( stops_a ):
 
 def dump_vehicles_csv( vehices_a ):
     """Dumps vehicle data in CSV format."""
-    print( "vehicle_id,vehicle_direction,vehicle_lat,vehicle_lon" )
+    print( "vehicle_id,vehicle_direction,vehicle_lat,vehicle_lon,vehicle_ago" )
     for vehicle_d in vehices_a:
         print(
-            '"%s","%s",%f,%f'
+            '"%s","%s",%f,%f,%d'
             % (vehicle_d[ VK_ID ], vehicle_d[ VK_DIRECTION ],
-               vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ])
+               vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ], vehicle_d[ VK_AGO ])
         )
 
 
@@ -195,11 +196,13 @@ def get_vehicle_locs( agency, route, last_time_ms ):
         dir = direction_tag_to_name_d[ dirTag ]
         lat = float( vehicle_element.attrib[ 'lat' ] )
         lon = float( vehicle_element.attrib[ 'lon' ] )
+        ago = int( vehicle_element.attrib[ 'secsSinceReport' ] )
         vehicle_d = {
             VK_ID        : id,
             VK_DIRECTION : dir,
             VK_LAT       : lat,
-            VK_LON       : lon
+            VK_LON       : lon,
+            VK_AGO       : ago
         }
         vehicle_a.append( vehicle_d )
     last_time_element = root_element.find( 'lastTime' )
@@ -207,9 +210,10 @@ def get_vehicle_locs( agency, route, last_time_ms ):
     return vehicle_a, last_time_ms
 
 
-def log( msg, file=sys.stdout ):
-    timestamp = datetime.utcnow().strftime( DATETIME_FORMAT + " GMT" )
-    print( "%s %s" % (timestamp, msg), file=file )
+def log( msg, delta_s=0, file=sys.stdout ):
+    time_s = int( time() ) + delta_s
+    dt = datetime.fromtimestamp( time_s ).strftime( DATETIME_FORMAT + " GMT" )
+    print( "%s %s" % (dt, msg), file=file )
     file.flush()
 
 
@@ -226,6 +230,7 @@ def log_vehicle_at_stop( vehicle_d, stop_d ):
                 % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ], stop_d[ SK_TITLE ],
                 stop_d[ SK_ID ], stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ],
                 stop_d[ SK_LON ]),
+                delta_s=-vehicle_d[ VK_AGO ],
                 file=args.log_file
             )
         else:
@@ -240,12 +245,14 @@ def log_vehicle_at_stop( vehicle_d, stop_d ):
                 % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ], stop_d[ SK_TITLE ],
                 stop_d[ SK_ID ], stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ],
                 stop_d[ SK_LON ]),
+                delta_s=-vehicle_d[ VK_AGO ],
                 file=args.log_file
             )
     else:
         log(
             'vehicle_id="%s" stop_tag="%s"'
             % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ]),
+            delta_s=-vehicle_d[ VK_AGO ],
             file=args.log_file
         )
 
