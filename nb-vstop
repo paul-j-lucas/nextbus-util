@@ -27,6 +27,7 @@ DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 EARTH_RADIUS    = 3959 * 5280           # feet
 ME              = os.path.basename( sys.argv[0] )
 NEXTBUS_URI     = 'http://webservices.nextbus.com/service/publicXMLFeed'
+KM_TO_MI        = 0.621371
 
 # default values
 HTTP_REQUEST_TIMEOUT_DEFAULT    = 10    # seconds
@@ -51,6 +52,7 @@ VK_DIRECTION    = 'direction'
 VK_ID           = 'id'                  # primary key
 VK_LAT          = 'lat'
 VK_LON          = 'lon'
+VK_SPEED_MPH    = 'speed_mph'
 
 # global variables
 vehicle_stop_d = { }                    # vehicle -> last stop it was at
@@ -88,12 +90,15 @@ def dump_stops_csv( stops_a ):
 
 def dump_vehicles_csv( vehices_a ):
     """Dumps vehicle data in CSV format."""
-    print( "vehicle_id,vehicle_direction,vehicle_lat,vehicle_lon,vehicle_ago" )
+    print( "vehicle_id,vehicle_direction,vehicle_speed,vehicle_lat,vehicle_lon,vehicle_ago" )
     for vehicle_d in vehices_a:
         print(
-            '"%s","%s",%f,%f,%d'
-            % (vehicle_d[ VK_ID ], vehicle_d[ VK_DIRECTION ],
-               vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ], vehicle_d[ VK_AGO ])
+            '"%s","%s",%f,%f,%f,%d'
+            % (vehicle_d[ VK_ID ],
+               vehicle_d[ VK_DIRECTION ],
+               vehicle_d[ VK_SPEED_MPH ],
+               vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ],
+               vehicle_d[ VK_AGO ])
         )
 
 
@@ -109,7 +114,7 @@ def find_stop( vehicle_d, stop_a ):
         if d_ft < min_distance_ft:
             min_distance_ft = d_ft
             min_stop_d = stop_d
-    return min_stop_d
+    return min_stop_d, int( round( min_distance_ft ) )
 
 
 def get_stops( agency, route ):
@@ -197,12 +202,14 @@ def get_vehicle_locs( agency, route, last_time_ms ):
         lat = float( vehicle_element.attrib[ 'lat' ] )
         lon = float( vehicle_element.attrib[ 'lon' ] )
         ago = int( vehicle_element.attrib[ 'secsSinceReport' ] )
+        speed_kph = float( vehicle_element.attrib[ 'speedKmHr' ] )
         vehicle_d = {
             VK_ID        : id,
             VK_DIRECTION : dir,
             VK_LAT       : lat,
             VK_LON       : lon,
-            VK_AGO       : ago
+            VK_AGO       : ago,
+            VK_SPEED_MPH : int( round( speed_kph * KM_TO_MI ) )
         }
         vehicle_a.append( vehicle_d )
     last_time_element = root_element.find( 'lastTime' )
@@ -217,41 +224,48 @@ def log( msg, delta_s=0, file=sys.stdout ):
     file.flush()
 
 
-def log_vehicle_at_stop( vehicle_d, stop_d ):
+def log_vehicle_at_stop( vehicle_d, stop_d, distance_ft ):
     if args.log_long_format:
         if args.log_geo:
             log(
                 'vehicle_id="%s"' \
+                ' vehicle_speed=%d' \
+                ' vehicle_distance=%d' \
                 ' stop_tag="%s"' \
                 ' stop_title="%s"' \
                 ' stop_id="%s"' \
                 ' stop_direction="%s"' \
                 ' _geo=%f,%f' \
-                % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ], stop_d[ SK_TITLE ],
-                stop_d[ SK_ID ], stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ],
-                stop_d[ SK_LON ]),
+                % (vehicle_d[ VK_ID ], vehicle_d[ VK_SPEED_MPH ],
+                   distance_ft,
+                   stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
+                   stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ]),
                 delta_s=-vehicle_d[ VK_AGO ],
                 file=args.log_file
             )
         else:
             log(
                 'vehicle_id="%s"' \
+                ' vehicle_speed=%d' \
+                ' vehicle_distance=%d' \
                 ' stop_tag="%s"' \
                 ' stop_title="%s"' \
                 ' stop_id="%s"' \
                 ' stop_direction="%s"' \
                 ' stop_lat=%f' \
                 ' stop_lon=%f' \
-                % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ], stop_d[ SK_TITLE ],
-                stop_d[ SK_ID ], stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ],
-                stop_d[ SK_LON ]),
+                % (vehicle_d[ VK_ID ], vehicle_d[ VK_SPEED_MPH ],
+                   distance_ft,
+                   stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
+                   stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ]),
                 delta_s=-vehicle_d[ VK_AGO ],
                 file=args.log_file
             )
     else:
         log(
-            'vehicle_id="%s" stop_tag="%s"'
-            % (vehicle_d[ VK_ID ], stop_d[ SK_TAG ]),
+            'vehicle_id="%s" vehicle_speed=%d vehicle_distance=%d stop_tag="%s"'
+            % (vehicle_d[ VK_ID ], vehicle_d[ VK_SPEED_MPH ], distance_ft,
+               stop_d[ SK_TAG ]),
             delta_s=-vehicle_d[ VK_AGO ],
             file=args.log_file
         )
@@ -437,7 +451,7 @@ try:
         vehicle_a, last_time_ms = \
             get_vehicle_locs( args.agency, args.route, last_time_ms )
         for vehicle_d in vehicle_a:
-            stop_d = find_stop( vehicle_d, stop_a )
+            stop_d, distance_ft = find_stop( vehicle_d, stop_a )
             if stop_d:
                 v_id = vehicle_d[ VK_ID ]
                 stop_tag = stop_d[ SK_TAG ]
@@ -447,7 +461,7 @@ try:
                 ##
                 if v_id not in vehicle_stop_d or \
                         vehicle_stop_d[ v_id ] != stop_tag:
-                    log_vehicle_at_stop( vehicle_d, stop_d )
+                    log_vehicle_at_stop( vehicle_d, stop_d, distance_ft )
                     vehicle_stop_d[ v_id ] = stop_tag
         if done():
             break
