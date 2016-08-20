@@ -24,6 +24,7 @@ from time import sleep, time
 
 # constants
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+LOG_FILE_FORMAT = "%Y-%m-%d"
 EARTH_RADIUS    = 3959 * 5280           # feet
 ME              = os.path.basename( sys.argv[0] )
 NEXTBUS_URI     = 'http://webservices.nextbus.com/service/publicXMLFeed'
@@ -398,6 +399,21 @@ if args.dump_csv and not (args.dump_stops or args.dump_vehicles):
 
 if args.log_geo:
     args.log_long_format = True
+
+args.route = args.route.upper()
+
+if "%s" in args.log_file.name:
+    # see http://stackoverflow.com/q/19055457/99089
+    args.log_file.close()
+    os.remove( args.log_file.name )
+
+    timestamp = datetime.now().strftime( LOG_FILE_FORMAT )
+    for n in xrange( 1, sys.maxint ):
+        name = "%s-%s-%d.log" % (args.route, timestamp, n)
+        path = args.log_file.name % name
+        if not os.path.exists( path ):
+            break
+    args.log_file = file( path, 'w' )
 
 if args.sleep_s < REQUEST_SLEEP_MIN:
     parser.error(
