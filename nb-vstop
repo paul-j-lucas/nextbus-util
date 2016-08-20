@@ -221,8 +221,8 @@ def get_vehicle_locs( agency, route, last_time_ms ):
 
 def log( msg, delta_s=0, file=sys.stdout ):
     time_s = int( time() ) + delta_s
-    dt = datetime.fromtimestamp( time_s ).strftime( DATETIME_FORMAT + " GMT" )
-    print( "%s %s" % (dt, msg), file=file )
+    dt = datetime.utcfromtimestamp( time_s ).strftime( DATETIME_FORMAT )
+    print( "%s GMT %s" % (dt, msg), file=file )
     file.flush()
 
 
