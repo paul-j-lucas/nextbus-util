@@ -80,12 +80,13 @@ def dump_json( json_obj ):
 
 def dump_stops_csv( stops_a ):
     """Dumps stop data in CSV format."""
-    print( "stop_tag,stop_title,stop_id,stop_direction,stop_lat,stop_lon" )
+    print( "stop_tag,stop_route,stop_title,stop_id,stop_direction,stop_lat,stop_lon" )
     for stop_d in stop_a:
         print(
-            '"%s","%s","%s","%s",%f,%f'
-            % (stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
-               stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ])
+            '"%s","%s","%s","%s","%s",%f,%f'
+            % (stop_d[ SK_TAG ], args.route, stop_d[ SK_TITLE ],
+               stop_d[ SK_ID ], stop_d[ SK_DIRECTION ],
+               stop_d[ SK_LAT ], stop_d[ SK_LON ])
         )
 
 
