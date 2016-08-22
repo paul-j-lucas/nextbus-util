@@ -55,9 +55,6 @@ VK_LAT          = 'lat'
 VK_LON          = 'lon'
 VK_SPEED_MPH    = 'speed_mph'
 
-# global variables
-vehicle_stop_d = { }                    # vehicle -> last stop it was at
-
 ########## Functions ##########################################################
 
 def distance( lat1, lon1, lat2, lon2 ):
@@ -470,16 +467,7 @@ try:
         for vehicle_d in vehicle_a:
             stop_d, distance_ft = find_stop( vehicle_d, stop_a )
             if stop_d:
-                v_id = vehicle_d[ VK_ID ]
-                stop_tag = stop_d[ SK_TAG ]
-                ##
-                # Keep track of the last stop a vehicle was at to prevent
-                # logging it at the same stop multiple times in a row.
-                ##
-                if v_id not in vehicle_stop_d or \
-                        vehicle_stop_d[ v_id ] != stop_tag:
-                    log_vehicle_at_stop( vehicle_d, stop_d, distance_ft )
-                    vehicle_stop_d[ v_id ] = stop_tag
+                log_vehicle_at_stop( vehicle_d, stop_d, distance_ft )
         if done():
             break
         status( "sleeping for %d seconds" % args.sleep_s )
