@@ -1,0 +1,106 @@
+#! /usr/bin/env python
+##
+#   nb-vclosest:    Filter NextBus data for the closest stops only.
+#   Version:        1.0
+#
+#   Author:         Paul J. Lucas
+##
+
+from __future__ import print_function
+
+import argparse
+import operator
+import os
+import re
+import sys
+
+###############################################################################
+
+# default values
+IN_DEFAULT  = sys.stdin
+OUT_DEFAULT = sys.stdout
+
+# JSON object keys
+K_VID       = 'vehicle_id'
+K_VSPEED    = 'vehicle_speed'
+K_VDISTANCE = 'vehicle_distance'
+K_STAG      = 'stop_tag'
+K_TIMESTAMP = 'timestamp'
+
+########## Functions ##########################################################
+
+def log( msg, file=sys.stdout ):
+    print( "%s" % msg, file=file )
+    file.flush()
+
+
+def log_vehicle_at_stop( log_d, file=sys.stdout ):
+    log(
+        '%s vehicle_id=%s vehicle_speed=%s vehicle_distance=%s stop_tag=%s'
+        % (log_d[ K_TIMESTAMP ],
+           log_d[ K_VID ], log_d[ K_VSPEED ], log_d[ K_VDISTANCE ],
+           log_d[ K_STAG ])
+    )
+
+
+def parse( line ):
+    """Parses a log entry line."""
+    timestamp = line[0:23]              # YYYY-MM-DD HH:MM:SS GMT
+    kv_pairs = line[24:]
+    kv_d = dict( re.findall( r'(\S+)=(\S+)', kv_pairs ) )
+    kv_d[ K_TIMESTAMP ] = timestamp
+    return kv_d
+
+
+########## Process command-line arguments #####################################
+
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    description="Filter NextBus vehicle/stop data."
+)
+
+parser.add_argument(
+    "-i", "--in-file", type=argparse.FileType('r'), default=sys.stdin,
+    dest="in_file", metavar="<file>",
+    help="specify log to read from [default: %s]"
+    % (IN_DEFAULT.name if type( IN_DEFAULT ) == file else IN_DEFAULT)
+)
+
+parser.add_argument(
+    "-o", "--out-file", type=argparse.FileType('w'), default=sys.stdout,
+    dest="out_file", metavar="<file>",
+    help="specify log to write to [default: %s]"
+    % (OUT_DEFAULT.name if type( OUT_DEFAULT ) == file else OUT_DEFAULT)
+)
+
+args = parser.parse_args()
+
+
+########## Main loop ##########################################################
+
+log_d = { }
+
+for line in args.in_file:
+    new_d = parse( line )
+    vid = new_d[ K_VID ]
+    if vid not in log_d:
+        log_d[ vid ] = new_d
+    else:
+        old_d = log_d[ vid ]
+        old_stop = old_d[ K_STAG ]
+        new_stop = new_d[ K_STAG ]
+        if new_stop == old_stop:
+            if int( new_d[ K_VDISTANCE ] ) <= int( old_d[ K_VDISTANCE ] ):
+                log_d[ vid ] = new_d
+        else:
+            log_vehicle_at_stop( old_d, args.out_file )
+            log_d[ vid ] = new_d
+
+# No more log entries: print whatever's left in the dictionary.
+for old_d in sorted( log_d.values(), key=operator.itemgetter( K_TIMESTAMP ) ):
+    log_vehicle_at_stop( old_d, args.out_file )
+
+sys.exit( 0 )
+
+###############################################################################
+# vim:set et sw=4 ts=4:
