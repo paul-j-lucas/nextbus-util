@@ -1,0 +1,68 @@
+stop_tag,stop_title,stop_id,stop_direction,stop_lat,stop_lon
+"3092","Beach St & Mason St","13092","Outbound",37.807410,-122.414120
+"3095","Beach St & Stockton St","13095","Outbound",37.807840,-122.410810
+"3311","17th St & Castro St","13311","Inbound",37.762580,-122.434980
+"33311","17th St & Castro St","133311","Outbound",37.762580,-122.434980
+"35184","Jones St & Beach St","135184","Inbound",37.807130,-122.417320
+"4501","The Embarcadero & Bay St","14501","Inbound",37.806950,-122.406280
+"4502","The Embarcadero & Bay St","14502","Outbound",37.806630,-122.406030
+"4503","The Embarcadero & Broadway","14503","Inbound",37.799550,-122.397870
+"4504","The Embarcadero & Broadway","14504","Outbound",37.798900,-122.397430
+"4506","The Embarcadero & Brannan St","14506","Outbound",37.784360,-122.388140
+"4513","The Embarcadero & Ferry Term","14513","Inbound",37.795110,-122.393860
+"4515","The Embarcadero & Greenwich St","14515","Inbound",37.803260,-122.401110
+"4516","The Embarcadero & Greenwich St","14516","Outbound",37.802960,-122.401030
+"4517","The Embarcadero & Green St","14517","Inbound",37.801260,-122.399370
+"4518","The Embarcadero & Green St","14518","Outbound",37.800610,-122.398920
+"4529","The Embarcadero & Sansome St","14529","Outbound",37.805020,-122.403310
+"4530","Pier 39","14530","Inbound",37.808350,-122.410290
+"4532","The Embarcadero & Washington St","14532","Inbound",37.797090,-122.395670
+"4534","The Embarcadero & Washington St","14534","Outbound",37.796360,-122.395180
+"4726","Ferry Plaza","14726","Outbound",37.794050,-122.393450
+"4727","Ferry Plaza","14727","Inbound",37.793920,-122.393440
+"5174","Jefferson St & Powell St","15174","Inbound",37.808590,-122.413360
+"5175","Jefferson St & Taylor St","15175","Inbound",37.808320,-122.415510
+"5184","Jones St & Beach St","15184","Outbound",37.807130,-122.417320
+"5234","King St & 2nd St","15234","Outbound",37.779720,-122.389870
+"5237","King St & 2nd St","15237","Inbound",37.779620,-122.389820
+"5239","King St & 4th St","15239","Outbound",37.776270,-122.394170
+"5240","King St & 4th St","15240","Inbound",37.776270,-122.394080
+"5639","Market St & 2nd St","15639","Outbound",37.789350,-122.401310
+"5640","Market St & 3rd St","15640","Inbound",37.787530,-122.403520
+"5643","Market St & 4th St","15643","Inbound",37.785710,-122.405850
+"5645","Market St & 5th St","15645","Inbound",37.783890,-122.408140
+"5647","Market St & 6th St","15647","Inbound",37.782100,-122.410400
+"5650","Market St & 7th St","15650","Inbound",37.780360,-122.412610
+"5651","Market St & 8th St","15651","Inbound",37.778610,-122.414830
+"5652","Market St & 9th St","15652","Inbound",37.777410,-122.416340
+"5655","Market St & 5th St North","15655","Outbound",37.784080,-122.407990
+"5656","Market St & 7th St North","15656","Outbound",37.780570,-122.412440
+"5657","Market St & Battery St","15657","Outbound",37.791110,-122.399070
+"5659","Market St & Buchanan St","15659","Outbound",37.769790,-122.426150
+"5661","Market St & Church St","15661","Outbound",37.767660,-122.428820
+"5662","Market St & Church St","15662","Inbound",37.767410,-122.429030
+"5668","Market St & Dolores St","15668","Inbound",37.768880,-122.427100
+"5669","Market St & Drumm St","15669","Outbound",37.793470,-122.396180
+"5672","Market St & Gough St","15672","Outbound",37.773270,-122.421770
+"5673","Market St & Gough St","15673","Inbound",37.772880,-122.421990
+"5675","Market St & Guerrero St","15675","Inbound",37.770570,-122.424970
+"5676","Market St & Hyde St","15676","Outbound",37.779110,-122.414380
+"5678","Market St & Kearny St","15678","Outbound",37.787730,-122.403370
+"5680","Market St & Larkin St","15680","Outbound",37.777600,-122.416240
+"5681","Market St & Laguna St","15681","Outbound",37.770950,-122.424670
+"5682","Market St & Main St","15682","Inbound",37.792980,-122.396630
+"5685","Market St & New Montgomery St","15685","Inbound",37.788610,-122.402160
+"5686","Market St & Noe St","15686","Outbound",37.764490,-122.432810
+"5687","Market St & Noe St","15687","Inbound",37.763960,-122.433320
+"5690","Market St & Sanchez St","15690","Outbound",37.766190,-122.430710
+"5691","Market St & Sanchez St","15691","Inbound",37.765690,-122.431140
+"5692","Market St & South Van Ness Ave","15692","Inbound",37.775060,-122.419320
+"5694","Market St & Stockton St","15694","Outbound",37.785780,-122.405860
+"5695","Market St & Taylor St","15695","Outbound",37.782320,-122.410230
+"5696","Market St & Van Ness Ave","15696","Outbound",37.775200,-122.419250
+"7145","The Embarcadero & Brannan St","17145","Inbound",37.784630,-122.387980
+"7264","Market St & 1st St","17264","Inbound",37.790940,-122.399190
+"7281","Embarcadero & Sansome St","17281","Inbound",37.805150,-122.403230
+"7283","The Embarcadero & Ferry Building","17283","Outbound",37.794830,-122.393770
+"7794","The Embarcadero & Harrison St","17794","Outbound",37.789600,-122.388630
+"7795","The Embarcadero & Harrsion St","17795","Inbound",37.789680,-122.388530
