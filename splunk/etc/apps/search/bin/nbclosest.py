@@ -51,21 +51,20 @@ class NextBusClosestStop( EventingCommand ):
     def transform( self, records ):
         for rec in records:
             vid = rec[ K_VID ]
-            if vid not in self.vdict:
-                self.vdict[ vid ] = rec
-            else:
+            if vid in self.vdict:
                 old_rec = self.vdict[ vid ]
                 old_stop = old_rec[ K_STAG ]
                 new_stop =     rec[ K_STAG ]
                 if new_stop == old_stop:
                     old_dist = int( old_rec[ K_VDIST ] )
                     new_dist = int(     rec[ K_VDIST ] )
-                    if new_dist <= old_dist:
-                        self.vdict[ vid ] = rec
+                    if new_dist > old_dist:
+                        continue
                 else:
                     yield old_rec
-                    self.vdict[ vid ] = rec
+            self.vdict[ vid ] = rec
 
+        # No more log entries: print whatever's left in the dictionary.
         remaining_recs = self.vdict.values()
         for rec in sorted( remaining_recs, key=operator.itemgetter( K_TIME ) ):
             yield rec
