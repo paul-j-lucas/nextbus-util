@@ -9,6 +9,7 @@
 from __future__ import print_function
 
 import argparse
+import atexit
 import errno
 import json
 import os
@@ -31,11 +32,12 @@ NEXTBUS_URI     = 'http://webservices.nextbus.com/service/publicXMLFeed'
 KM_TO_MI        = 0.621371
 
 # default values
-HTTP_REQUEST_TIMEOUT_DEFAULT    = 10    # seconds
 LOG_DEFAULT                     = sys.stdout
 NEXTBUS_AGENCY_DEFAULT          = 'sf-muni'
-REQUEST_SLEEP_DEFAULT           = 60    # seconds
-REQUEST_SLEEP_MIN               = 10    # seconds
+REQUEST_POLL_DEFAULT            = 60    # seconds
+REQUEST_POLL_MIN                = 10    # seconds
+REQUEST_RETRY_DEFAULT           = 60    # seconds
+REQUEST_TIMEOUT_DEFAULT         = 30    # seconds
 ROUTE_DEFAULT                   = 'F'
 STOP_DISTANCE_DEFAULT           = 100   # feet
 
@@ -68,6 +70,16 @@ def distance( lat1, lon1, lat2, lon2 ):
     a = sin( dlat / 2 )**2 + cos( lat1 ) * cos( lat2 ) * sin( dlon / 2 )**2
     c = 2 * atan2( sqrt( a ), sqrt( 1 - a ) )
     return c * EARTH_RADIUS
+
+
+def done():
+    """Checks whether we're done."""
+    if 'times' in args.duration:
+        args.duration[ 'times' ] -= 1
+        return args.duration[ 'times' ] <= 0
+    if 'seconds' in args.duration:
+        now = time()
+        return now >= args.duration[ 'seconds' ]
 
 
 def dump_json( json_obj ):
@@ -118,7 +130,7 @@ def find_stop( vehicle_d, stop_a ):
 
 def get_stops( agency, route ):
     """Gets data for all stops for the given route."""
-    r = requests.get(
+    r = requests_get_retry(
             NEXTBUS_URI,
             params = {
                 'command' : 'routeConfig',
@@ -270,14 +282,26 @@ def log_vehicle_at_stop( vehicle_d, stop_d, distance_ft ):
         )
 
 
-def ok( r ):
-    return r.status_code == requests.codes.ok
+def requests_get_retry( url, params=None, **kwargs ):
+    while True:
+        try:
+            return requests.get( url, params=params, **kwargs )
+        except requests.exceptions as e:
+            status( "HTTP request exception: %s" % e )
+            if done():
+                terminate()
+            status( "will retry in %d seconds; sleeping" % args.retry_s )
+            sleep( args.retry_s )
 
 
 def status( msg ):
     if not args.quiet:
         timestamp = datetime.now().strftime( DATETIME_FORMAT )
         print( "%s: [%s] %s" % (ME, timestamp, msg) )
+
+
+def terminate():
+    status( "terminating" )
 
 
 ########## Process command-line arguments #####################################
@@ -353,22 +377,28 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "-p", "--poll", type=int, default=REQUEST_POLL_DEFAULT, dest="poll_s",
+    metavar="<seconds>",
+    help="specify poll frequency [default: %ds]" % REQUEST_POLL_DEFAULT
+)
+
+parser.add_argument(
     "-r", "--route", default=ROUTE_DEFAULT, dest="route", metavar="<route>",
     help="specify agency route [default: %s]" % ROUTE_DEFAULT
 )
 
 parser.add_argument(
-    "-s", "--sleep", type=int, default=REQUEST_SLEEP_DEFAULT, dest="sleep_s",
+    "-R", "--retry", type=int, default=REQUEST_RETRY_DEFAULT, dest="retry_s",
     metavar="<seconds>",
-    help="specify time to sleep between requests [default: %ds]"
-        % REQUEST_SLEEP_DEFAULT
+    help="specify request failure retry frequency [default: %ds]"
+    % REQUEST_RETRY_DEFAULT
 )
 
 parser.add_argument(
-    "-t", "--timeout", type=int, default=HTTP_REQUEST_TIMEOUT_DEFAULT,
+    "-t", "--timeout", type=int, default=REQUEST_TIMEOUT_DEFAULT,
     dest="timeout", metavar="<seconds>",
     help="specify HTTP request timeout [default: %ds]"
-    % HTTP_REQUEST_TIMEOUT_DEFAULT
+    % REQUEST_TIMEOUT_DEFAULT
 )
 
 dump_group = parser.add_mutually_exclusive_group()
@@ -413,9 +443,9 @@ if "%s" in args.log_file.name:
             break
     args.log_file = file( path, 'w' )
 
-if args.sleep_s < REQUEST_SLEEP_MIN:
+if args.poll_s < REQUEST_POLL_MIN:
     parser.error(
-        "-s/--sleep must not be less than %d seconds" % REQUEST_SLEEP_MIN
+        "-s/--sleep must not be less than %d seconds" % REQUEST_POLL_MIN
     )
 
 ########## Honor data dump requests ###########################################
@@ -442,13 +472,7 @@ if args.dump_stops or args.dump_vehicles:
 
 ########## Main loop ##########################################################
 
-def done():
-    if 'times' in args.duration:
-        args.duration[ 'times' ] -= 1
-        return args.duration[ 'times' ] <= 0
-    if 'seconds' in args.duration:
-        now = time()
-        return now >= args.duration[ 'seconds' ]
+atexit.register( terminate )
 
 ##
 # NextBus' vehicleLocations command takes the last time you used the command so
@@ -470,12 +494,11 @@ try:
                 log_vehicle_at_stop( vehicle_d, stop_d, distance_ft )
         if done():
             break
-        status( "sleeping for %d seconds" % args.sleep_s )
-        sleep( args.sleep_s )
+        status( "sleeping for %d seconds" % args.poll_s )
+        sleep( args.poll_s )
 except KeyboardInterrupt:
     pass
 
-status( "terminating" )
 sys.exit( 0 )
 
 ###############################################################################
