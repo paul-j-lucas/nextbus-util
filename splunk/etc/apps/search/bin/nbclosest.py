@@ -50,14 +50,25 @@ class NextBusClosestStop( EventingCommand ):
 
     def transform( self, records ):
         for rec in records:
+            if not ( K_TIME in rec and K_VID in rec and K_VDIST in rec and \
+                     K_STAG in rec ):
+                continue
             vid = rec[ K_VID ]
+            if not vid:
+                continue
+            try:
+                new_dist = int( rec[ K_VDIST ] )
+            except ValueError:
+                continue
+            new_stop = rec[ K_STAG ]
+            if not new_stop:
+                continue
+
             if vid in self.vdict:
                 old_rec = self.vdict[ vid ]
                 old_stop = old_rec[ K_STAG ]
-                new_stop =     rec[ K_STAG ]
                 if new_stop == old_stop:
                     old_dist = int( old_rec[ K_VDIST ] )
-                    new_dist = int(     rec[ K_VDIST ] )
                     if new_dist > old_dist:
                         continue
                 else:
