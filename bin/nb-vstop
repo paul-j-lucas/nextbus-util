@@ -137,6 +137,7 @@ def etree_fromstring( s ):
         status( "XML parsing exception: %s" % e )
         return None
 
+
 def get_stops( agency, route ):
     """Gets data for all stops for the given route."""
     r = requests_get_retry(
