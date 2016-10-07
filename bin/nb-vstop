@@ -130,6 +130,13 @@ def find_stop( vehicle_d, stop_a ):
     return min_stop_d, int( round( min_distance_ft ) )
 
 
+def etree_fromstring( s ):
+    try:
+        return ET.fromstring( s )
+    except Exception as e:
+        status( "XML parsing exception: %s" % e )
+        return None
+
 def get_stops( agency, route ):
     """Gets data for all stops for the given route."""
     r = requests_get_retry(
@@ -143,7 +150,9 @@ def get_stops( agency, route ):
     )
     if args.dump_xml:
         print( r.text )
-    root_element = ET.fromstring( r.text )
+    root_element = etree_fromstring( r.text )
+    if root_element is None:
+        return None, None
     ##
     # Each route has two directions: for each direction, get the list of stops
     # and create direction-tag-to-name and stop-tag-to-direction-name mappings.
@@ -201,7 +210,9 @@ def get_vehicle_locs( agency, route, last_time_ms ):
     )
     if args.dump_xml:
         print( r.text )
-    root_element = ET.fromstring( r.text )
+    root_element = etree_fromstring( r.text )
+    if root_element is None:
+        return None, None
     vehicle_elements = root_element.findall( './/vehicle' )
     vehicle_a = [ ]
     for vehicle_element in vehicle_elements:
@@ -466,17 +477,19 @@ if not (args.dump_stops or args.dump_vehicles):
 stop_a, direction_tag_to_name_d = get_stops( args.agency, args.route )
 
 if args.dump_stops:
-    if args.dump_csv:
-        dump_stops_csv( stop_a )
-    else:
-        dump_json( stop_a )
+    if stop_a is not None:
+        if args.dump_csv:
+            dump_stops_csv( stop_a )
+        else:
+            dump_json( stop_a )
 
 if args.dump_vehicles:
     vehicle_a, last_time_ms = get_vehicle_locs( args.agency, args.route, 0 )
-    if args.dump_csv:
-        dump_vehicles_csv( vehicle_a )
-    else:
-        dump_json( vehicle_a )
+    if vehicle_a is not None:
+        if args.dump_csv:
+            dump_vehicles_csv( vehicle_a )
+        else:
+            dump_json( vehicle_a )
 
 if args.dump_stops or args.dump_vehicles:
     sys.exit( 0 )
@@ -499,10 +512,11 @@ try:
         )
         vehicle_a, last_time_ms = \
             get_vehicle_locs( args.agency, args.route, last_time_ms )
-        for vehicle_d in vehicle_a:
-            stop_d, distance_ft = find_stop( vehicle_d, stop_a )
-            if stop_d:
-                log_vehicle_at_stop( vehicle_d, stop_d, distance_ft )
+        if vehicle_a is not None:
+            for vehicle_d in vehicle_a:
+                stop_d, distance_ft = find_stop( vehicle_d, stop_a )
+                if stop_d:
+                    log_vehicle_at_stop( vehicle_d, stop_d, distance_ft )
         if done():
             break
         status( "sleeping for %d seconds" % args.poll_s )
