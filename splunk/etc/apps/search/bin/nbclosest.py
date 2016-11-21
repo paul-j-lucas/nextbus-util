@@ -8,6 +8,7 @@
 
 import operator
 import sys
+import time
 
 from splunklib.searchcommands import dispatch, Configuration, EventingCommand
 from splunklib.searchcommands.decorators import ConfigurationSetting
@@ -20,6 +21,10 @@ K_VDIST = 'vehicle_distance'
 K_VID   = 'vehicle_id'
 
 ###############################################################################
+
+def date( t ):
+    return time.strftime( '%Y%m%d', time.localtime( int( t ) ) )
+
 
 @Configuration()
 class NextBusClosestStop( EventingCommand ):
@@ -45,7 +50,15 @@ class NextBusClosestStop( EventingCommand ):
 
     def __init__( self ):
         super( NextBusClosestStop, self ).__init__()
+        self.old_date = ''
         self.vdict = { }
+
+
+    def drain( self ):
+        recs = self.vdict.values()
+        for rec in sorted( recs, key=operator.itemgetter( K_TIME ) ):
+            yield rec
+        self.vdict.clear()
 
 
     def transform( self, records ):
@@ -53,16 +66,24 @@ class NextBusClosestStop( EventingCommand ):
             if not ( K_TIME in rec and K_VID in rec and K_VDIST in rec and \
                      K_STAG in rec ):
                 continue
+
             vid = rec[ K_VID ]
             if not vid:
                 continue
+
             try:
                 new_dist = int( rec[ K_VDIST ] )
             except ValueError:
                 continue
+
             new_stop = rec[ K_STAG ]
             if not new_stop:
                 continue
+
+            new_date = date( rec[ K_TIME ] )
+            if new_date != self.old_date:
+                self.drain()
+                self.old_date = new_date
 
             if vid in self.vdict:
                 old_rec = self.vdict[ vid ]
@@ -76,9 +97,7 @@ class NextBusClosestStop( EventingCommand ):
             self.vdict[ vid ] = rec
 
         # No more log entries: print whatever's left in the dictionary.
-        remaining_recs = self.vdict.values()
-        for rec in sorted( remaining_recs, key=operator.itemgetter( K_TIME ) ):
-            yield rec
+        self.drain()
 
 
 dispatch( NextBusClosestStop, sys.argv, sys.stdin, sys.stdout, __name__ )

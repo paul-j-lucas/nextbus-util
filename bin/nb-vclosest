@@ -21,14 +21,20 @@ IN_DEFAULT  = sys.stdin
 OUT_DEFAULT = sys.stdout
 
 # JSON object keys
+K_STAG      = 'stop_tag'
 K_VID       = 'vehicle_id'
 K_VSPEED    = 'vehicle_speed'
 K_VDIST     = 'vehicle_distance'
 K_VROUTE    = 'vehicle_route'
-K_STAG      = 'stop_tag'
+K_DATE      = 'date'
 K_TIME      = '_time'
 
 ########## Functions ##########################################################
+
+def drain( vdict ):
+    for d in sorted( vdict.values(), key=operator.itemgetter( K_TIME ) ):
+        log_vehicle_at_stop( d, args.out_file )
+
 
 def log( msg, file=sys.stdout ):
     print( "%s" % msg, file=file )
@@ -50,6 +56,7 @@ def log_vehicle_at_stop( vdict, file=sys.stdout ):
 def parse( line ):
     """Parses a log entry line."""
     kv_d = dict( re.findall( r'(\S+)=(\S+)', line[24:] ) )
+    kv_d[ K_DATE ] = line[0:10]
     kv_d[ K_TIME ] = line[0:23]         # YYYY-MM-DD HH:MM:SS GMT
     return kv_d
 
@@ -80,10 +87,16 @@ args = parser.parse_args()
 
 ########## Main loop ##########################################################
 
+old_date = ''
 vdict = { }
 
 for line in args.in_file:
     new_d = parse( line )
+    new_date = new_d[ K_DATE ]
+    if new_date != old_date:
+        drain( vdict )
+        vdict.clear()
+        old_date = new_date
     vid = new_d[ K_VID ]
     if vid in vdict:
         old_d = vdict[ vid ]
@@ -99,8 +112,7 @@ for line in args.in_file:
     vdict[ vid ] = new_d
 
 # No more log entries: print whatever's left in the dictionary.
-for old_d in sorted( vdict.values(), key=operator.itemgetter( K_TIME ) ):
-    log_vehicle_at_stop( old_d, args.out_file )
+drain( vdict )
 
 sys.exit( 0 )
 
