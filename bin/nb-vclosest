@@ -24,6 +24,7 @@ OUT_DEFAULT = sys.stdout
 K_VID       = 'vehicle_id'
 K_VSPEED    = 'vehicle_speed'
 K_VDIST     = 'vehicle_distance'
+K_VROUTE    = 'vehicle_route'
 K_STAG      = 'stop_tag'
 K_TIME      = '_time'
 
@@ -36,9 +37,12 @@ def log( msg, file=sys.stdout ):
 
 def log_vehicle_at_stop( vdict, file=sys.stdout ):
     log(
-        '%s vehicle_id=%s vehicle_speed=%s vehicle_distance=%s stop_tag=%s'
+        '%s vehicle_id=%s vehicle_route=%s vehicle_speed=%s vehicle_distance=%s stop_tag=%s'
         % (vdict[ K_TIME ],
-           vdict[ K_VID ], vdict[ K_VSPEED ], vdict[ K_VDIST ],
+           vdict[ K_VID ],
+           vdict[ K_VROUTE ],
+           vdict[ K_VSPEED ],
+           vdict[ K_VDIST ],
            vdict[ K_STAG ])
     )
 
