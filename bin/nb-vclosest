@@ -90,29 +90,32 @@ args = parser.parse_args()
 old_date = ''
 vdict = { }
 
-for line in args.in_file:
-    new_d = parse( line )
-    new_date = new_d[ K_DATE ]
-    if new_date != old_date:
-        drain( vdict )
-        vdict.clear()
-        old_date = new_date
-    vid = new_d[ K_VID ]
-    if vid in vdict:
-        old_d = vdict[ vid ]
-        old_stop = old_d[ K_STAG ]
-        new_stop = new_d[ K_STAG ]
-        if new_stop == old_stop:
-            old_dist = int( old_d[ K_VDIST ] )
-            new_dist = int( new_d[ K_VDIST ] )
-            if new_dist > old_dist:
-                continue
-        else:
-            log_vehicle_at_stop( old_d, args.out_file )
-    vdict[ vid ] = new_d
+try:
+    for line in args.in_file:
+        new_d = parse( line )
+        new_date = new_d[ K_DATE ]
+        if new_date != old_date:
+            drain( vdict )
+            vdict.clear()
+            old_date = new_date
+        vid = new_d[ K_VID ]
+        if vid in vdict:
+            old_d = vdict[ vid ]
+            old_stop = old_d[ K_STAG ]
+            new_stop = new_d[ K_STAG ]
+            if new_stop == old_stop:
+                old_dist = int( old_d[ K_VDIST ] )
+                new_dist = int( new_d[ K_VDIST ] )
+                if new_dist > old_dist:
+                    continue
+            else:
+                log_vehicle_at_stop( old_d, args.out_file )
+        vdict[ vid ] = new_d
 
-# No more log entries: print whatever's left in the dictionary.
-drain( vdict )
+    # No more log entries: print whatever's left in the dictionary.
+    drain( vdict )
+except KeyboardInterrupt:
+    pass
 
 sys.exit( 0 )
 
