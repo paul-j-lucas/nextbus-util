@@ -9,10 +9,12 @@
 from __future__ import print_function
 
 import argparse
+import calendar
 import operator
 import os
 import re
 import sys
+import time
 
 ###############################################################################
 
@@ -56,8 +58,10 @@ def log_vehicle_at_stop( vdict, file=sys.stdout ):
 def parse( line ):
     """Parses a log entry line."""
     kv_d = dict( re.findall( r'(\S+)=(\S+)', line[24:] ) )
-    kv_d[ K_DATE ] = line[0:10]
-    kv_d[ K_TIME ] = line[0:23]         # YYYY-MM-DD HH:MM:SS GMT
+    time_str_gmt = line[0:23]           # YYYY-MM-DD HH:MM:SS GMT
+    time_sec_gmt = calendar.timegm( time.strptime( time_str_gmt, '%Y-%m-%d %H:%M:%S %Z' ) )
+    kv_d[ K_TIME ] = time_str_gmt
+    kv_d[ K_DATE ] = time.strftime( '%Y%m%d', time.localtime( time_sec_gmt ) )
     return kv_d
 
 
