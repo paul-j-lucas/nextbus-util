@@ -54,6 +54,11 @@ class NextBusClosestStop( EventingCommand ):
         self.vdict = { }
 
 
+    def __del__( self ):
+        self.drain()
+        super( NextBusClosestStop, self ).__del__()
+
+
     def drain( self ):
         recs = self.vdict.values()
         for rec in sorted( recs, key=operator.itemgetter( K_TIME ) ):
@@ -71,11 +76,6 @@ class NextBusClosestStop( EventingCommand ):
             if not vid:
                 continue
 
-            try:
-                new_dist = int( rec[ K_VDIST ] )
-            except ValueError:
-                continue
-
             new_stop = rec[ K_STAG ]
             if not new_stop:
                 continue
@@ -90,6 +90,7 @@ class NextBusClosestStop( EventingCommand ):
                 old_stop = old_rec[ K_STAG ]
                 if new_stop == old_stop:
                     old_dist = int( old_rec[ K_VDIST ] )
+                    new_dist = int( rec[ K_VDIST ] )
                     if new_dist > old_dist:
                         continue
                 else:
