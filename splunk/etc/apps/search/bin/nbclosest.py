@@ -54,11 +54,6 @@ class NextBusClosestStop( EventingCommand ):
         self.vdict = { }
 
 
-    def __del__( self ):
-        self.drain()
-        super( NextBusClosestStop, self ).__del__()
-
-
     def drain( self ):
         recs = self.vdict.values()
         for rec in sorted( recs, key=operator.itemgetter( K_TIME ) ):
@@ -82,7 +77,8 @@ class NextBusClosestStop( EventingCommand ):
 
             new_date = date( rec[ K_TIME ] )
             if new_date != self.old_date:
-                self.drain()
+                for rec in self.drain():
+                    yield rec
                 self.old_date = new_date
 
             if vid in self.vdict:
@@ -98,7 +94,8 @@ class NextBusClosestStop( EventingCommand ):
             self.vdict[ vid ] = rec
 
         # No more log entries: print whatever's left in the dictionary.
-        self.drain()
+        for rec in self.drain():
+            yield rec
 
 
 dispatch( NextBusClosestStop, sys.argv, sys.stdin, sys.stdout, __name__ )
