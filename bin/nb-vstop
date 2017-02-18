@@ -253,52 +253,39 @@ def log( msg, delta_s=0, file=sys.stdout ):
 
 def log_vehicle_at_stop( vehicle_d, stop_d, distance_ft ):
     if args.log_long_format:
-        if args.log_geo:
-            log(
-                'vehicle_id="%s"' \
-                ' vehicle_route="%s"' \
-                ' vehicle_speed=%d' \
-                ' vehicle_distance=%d' \
-                ' stop_tag="%s"' \
-                ' stop_title="%s"' \
-                ' stop_id="%s"' \
-                ' stop_direction="%s"' \
-                ' _geo=%f,%f' \
-                % (vehicle_d[ VK_ID ], vehicle_d[ VK_ROUTE ],
-                   vehicle_d[ VK_SPEED_MPH ], distance_ft,
-                   stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
-                   stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ]),
-                delta_s=-vehicle_d[ VK_AGO ],
-                file=args.log_file
-            )
-        else:
-            log(
-                'vehicle_id="%s"' \
-                ' vehicle_route="%s"' \
-                ' vehicle_speed=%d' \
-                ' vehicle_distance=%d' \
-                ' stop_tag="%s"' \
-                ' stop_title="%s"' \
-                ' stop_id="%s"' \
-                ' stop_direction="%s"' \
-                ' stop_lat=%f' \
-                ' stop_lon=%f' \
-                % (vehicle_d[ VK_ID ], vehicle_d[ VK_ROUTE ],
-                   vehicle_d[ VK_SPEED_MPH ], distance_ft,
-                   stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
-                   stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ]),
-                delta_s=-vehicle_d[ VK_AGO ],
-                file=args.log_file
-            )
+        log(
+            'vehicle_id="%s"' \
+            ' vehicle_route="%s"' \
+            ' vehicle_speed=%d' \
+            ' vehicle_lat=%f' \
+            ' vehicle_lon=%f' \
+            ' vehicle_distance=%d' \
+            ' stop_tag="%s"' \
+            ' stop_title="%s"' \
+            ' stop_id="%s"' \
+            ' stop_direction="%s"' \
+            ' stop_lat=%f' \
+            ' stop_lon=%f' \
+            % (vehicle_d[ VK_ID ], vehicle_d[ VK_ROUTE ],
+                vehicle_d[ VK_SPEED_MPH ],
+                vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ], distance_ft,
+                stop_d[ SK_TAG ], stop_d[ SK_TITLE ], stop_d[ SK_ID ],
+                stop_d[ SK_DIRECTION ], stop_d[ SK_LAT ], stop_d[ SK_LON ]),
+            delta_s=-vehicle_d[ VK_AGO ],
+            file=args.log_file
+        )
     else:
         log(
             'vehicle_id="%s"' \
             ' vehicle_route="%s"' \
             ' vehicle_speed=%d' \
+            ' vehicle_lat=%f' \
+            ' vehicle_lon=%f' \
             ' vehicle_distance=%d' \
             ' stop_tag="%s"'
             % (vehicle_d[ VK_ID ], vehicle_d[ VK_ROUTE ],
-               vehicle_d[ VK_SPEED_MPH ], distance_ft,
+               vehicle_d[ VK_SPEED_MPH ],
+               vehicle_d[ VK_LAT ], vehicle_d[ VK_LON ], distance_ft,
                stop_d[ SK_TAG ]),
             delta_s=-vehicle_d[ VK_AGO ],
             file=args.log_file
@@ -379,11 +366,6 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-g", "--google-geo", action="store_true", dest="log_geo",
-    help="log latitute & longitude as Goole Maps' _geo field (implies -l)"
-)
-
-parser.add_argument(
     "-l", "--log-long", action="store_true", dest="log_long_format",
     help="log vehicles at stops in long format"
 )
@@ -447,9 +429,6 @@ if args.dump_csv and not (args.dump_stops or args.dump_vehicles):
     parser.error(
         "-c/--dump_csv requires either -S/--dump-stops or -V/--dump-vehicles"
     )
-
-if args.log_geo:
-    args.log_long_format = True
 
 args.route = args.route.upper()
 
