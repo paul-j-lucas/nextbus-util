@@ -18,6 +18,13 @@ using their [API](https://www.nextbus.com/xmlFeedDocs/NextBusXMLFeed.pdf).
 ## Splunk Integration
 
 Additionally,
-there is a stop data lookup table
-and custom search command
+there are historic streetcar fleet and stop data lookup tables
+for the
+[San Francisco Municipal Railway (Muni)](https://www.sfmta.com/)
+as well as a custom search command
 for integration with [Splunk](https://www.splunk.com/).
+
+## Non-Affiliation
+
+This software is not affiliated with
+NextBus, SFMTA, or Splunk.
