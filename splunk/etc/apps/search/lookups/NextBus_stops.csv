@@ -9,7 +9,7 @@ stop_tag,stop_title,stop_id,stop_direction,stop_lat,stop_lon
 "4503","The Embarcadero & Broadway","14503","Inbound",37.799550,-122.397870
 "4504","The Embarcadero & Broadway","14504","Outbound",37.798900,-122.397430
 "4506","The Embarcadero & Brannan St","14506","Outbound",37.784360,-122.388140
-"4513","The Embarcadero & Ferry Term","14513","Inbound",37.795110,-122.393860
+"4513","The Embarcadero & Ferry Building","14513","Inbound",37.795110,-122.393860
 "4515","The Embarcadero & Greenwich St","14515","Inbound",37.803260,-122.401110
 "4516","The Embarcadero & Greenwich St","14516","Outbound",37.802960,-122.401030
 "4517","The Embarcadero & Green St","14517","Inbound",37.801260,-122.399370
@@ -27,6 +27,7 @@ stop_tag,stop_title,stop_id,stop_direction,stop_lat,stop_lon
 "5237","King St & 2nd St","15237","Inbound",37.779620,-122.389820
 "5239","King St & 4th St","15239","Outbound",37.776270,-122.394170
 "5240","King St & 4th St","15240","Inbound",37.776270,-122.394080
+"5241","King St & 6th St","15241","Outbound",37.7733199,-122.39777
 "5639","Market St & 2nd St","15639","Outbound",37.789350,-122.401310
 "5640","Market St & 3rd St","15640","Inbound",37.787530,-122.403520
 "5643","Market St & 4th St","15643","Inbound",37.785710,-122.405850
@@ -65,4 +66,4 @@ stop_tag,stop_title,stop_id,stop_direction,stop_lat,stop_lon
 "7281","Embarcadero & Sansome St","17281","Inbound",37.805150,-122.403230
 "7283","The Embarcadero & Ferry Building","17283","Outbound",37.794830,-122.393770
 "7794","The Embarcadero & Harrison St","17794","Outbound",37.789600,-122.388630
-"7795","The Embarcadero & Harrsion St","17795","Inbound",37.789680,-122.388530
+"7795","The Embarcadero & Harrison St","17795","Inbound",37.789680,-122.388530
