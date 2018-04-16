@@ -293,6 +293,14 @@ def log_vehicle_at_stop( vehicle_d, stop_d, distance_ft ):
         )
 
 
+def remove_quietly( path ):
+    try:
+        os.remove( path )
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+
 def requests_get_retry( url, params=None, **kwargs ):
     while True:
         try:
@@ -436,7 +444,7 @@ args.route = args.route.upper()
 if "%s" in args.log_file.name:
     # see http://stackoverflow.com/q/19055457/99089
     args.log_file.close()
-    os.remove( args.log_file.name )
+    remove_quietly( args.log_file.name )
 
     timestamp = datetime.now().strftime( LOG_FILE_FORMAT )
     for n in xrange( 1, sys.maxint ):
@@ -458,7 +466,7 @@ if not (args.dump_stops or args.dump_vehicles):
 stop_a, direction_tag_to_name_d = get_stops( args.agency, args.route )
 
 if args.dump_stops:
-    if stop_a is not None:
+    if stop_a is not None and direction_tag_to_name_d is not None:
         if args.dump_csv:
             dump_stops_csv( stop_a )
         else:
@@ -474,6 +482,14 @@ if args.dump_vehicles:
 
 if args.dump_stops or args.dump_vehicles:
     sys.exit( 0 )
+
+if stop_a is None:
+    status( "error: no stops for %s '%s'" % (args.agency, args.route) )
+    sys.exit( 1 )
+
+if direction_tag_to_name_d is None:
+    status( "error: no direction tags for %s '%s'" % (args.agency, args.route) )
+    sys.exit( 1 )
 
 ########## Main loop ##########################################################
 
