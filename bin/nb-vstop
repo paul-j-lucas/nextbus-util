@@ -241,7 +241,10 @@ def get_vehicle_locs( agency, route, last_time_ms ):
         }
         vehicle_a.append( vehicle_d )
     last_time_element = root_element.find( 'lastTime' )
-    last_time_ms = long( last_time_element.attrib[ 'time' ] )
+    if last_time_element is not None:
+        last_time_ms = long( last_time_element.attrib[ 'time' ] )
+    else:
+        last_time_ms = 0
     return vehicle_a, last_time_ms
 
 
